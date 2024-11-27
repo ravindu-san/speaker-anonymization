@@ -1,0 +1,4 @@
+LibriSpeech
+.idea
+__pycache__
+*.tar.gz
