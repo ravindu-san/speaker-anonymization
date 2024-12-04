@@ -21,12 +21,10 @@ sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - alphas_cumprod)
 posterior_variance = betas * (1. - alphas_cumprod_prev) / (1. - alphas_cumprod)
 
 
-
 def extract(arr, t, x_start_shape):
     batch_size = t.shape[0]
-    out = torch.gather(arr, dim=-1, index=t)
-    return torch.reshape(out, (batch_size, *((1,) * (len(x_start_shape) - 1)))).to(device=t.device)
-
+    out = torch.gather(arr, dim=-1, index=t.cpu())
+    return out.reshape(batch_size, *((1,) * (len(x_start_shape) - 1))).to(t.device)
 
 def q_sample(x_start, t, noise=None):
     if noise is None:
@@ -35,7 +33,6 @@ def q_sample(x_start, t, noise=None):
     sqrt_alphas_cumprod_t = extract(sqrt_alphas_cumprod, t, x_start.shape)
     sqrt_one_minus_alphas_cumprod_t = extract(sqrt_one_minus_alphas_cumprod, t, x_start.shape)
     return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
-
 
 @torch.no_grad()
 def p_sample(model, x, t, t_index):
@@ -54,7 +51,7 @@ def p_sample(model, x, t, t_index):
 
 @torch.no_grad()
 def p_sample_loop(model, shape):
-    device = next(model.parameters()).device()
+    device = next(model.parameters()).device
     batch_size = shape[0]
     img = torch.randn(shape, device=device)
 
