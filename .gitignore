@@ -1,4 +1,14 @@
 LibriSpeech
 .idea
+.vscode
 __pycache__
 *.tar.gz
+.venv
+
+generated_samples
+loss_graphs
+models
+p_sampling
+spectrogram_images
+*.pt
+*.png
