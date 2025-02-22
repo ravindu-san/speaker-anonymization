@@ -1,0 +1,12 @@
+/home/woody/iwi5/iwi5248h/software/private/conda/envs/speaker-anonymization/lib/python3.12/site-packages/torch/nn/utils/weight_norm.py:143: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+/home/hpc/iwi5/iwi5248h/projects/Speaker Anonymization/multi-gpu/diffusion-multi-gpu.py:358: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  self.scaler = torch.cuda.amp.GradScaler()
+2
+Training progress:   0%|          | 0/1 [00:00<?, ?it/s]Training progress: 100%|██████████| 1/1 [39:38<00:00, 2378.96s/it]Training progress: 100%|██████████| 1/1 [39:38<00:00, 2378.96s/it]
+Start of epoch 1
+!!!!!!!!!!!!! saving best epoch 1 state dict !!!!!!!```````
+epoch: 1, loss: 0.006075821351259947 ~~~~~~
+Time taken for epoch 1 is 39.649 min
+
+finish training: ~~~~~~~~~~~~~~~~~~~~~~~~~~

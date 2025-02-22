@@ -12,3 +12,5 @@ p_sampling
 spectrogram_images
 *.pt
 *.png
+*.flac
+*.wav
