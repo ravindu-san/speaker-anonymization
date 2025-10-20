@@ -7,10 +7,14 @@ __pycache__
 
 generated_samples
 loss_graphs
-models
 p_sampling
 spectrogram_images
 *.pt
 *.png
 *.flac
 *.wav
+*.npy
+slurm-output
+*/results
+*.ckpt
+*.sh
