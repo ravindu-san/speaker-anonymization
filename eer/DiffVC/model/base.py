@@ -22,7 +22,6 @@ class BaseModule(torch.nn.Module):
                 num_params += np.prod(param.detach().cpu().numpy().shape)
         return num_params
 
-
     def relocate_input(self, x: list):
         device = next(self.parameters()).device
         for i in range(len(x)):

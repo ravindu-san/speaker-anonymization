@@ -19,8 +19,7 @@ from torch.utils.data.distributed import DistributedSampler
 from fairseq import checkpoint_utils
 
 
-
-AUDIO_FREQUNCY = 16000 
+AUDIO_FREQUNCY = 16000
 AUDIO_TIME_LEN = 1
 AUDIO_LEN = AUDIO_FREQUNCY * AUDIO_TIME_LEN
 CROP_MEL_FRAMES = 62
@@ -37,7 +36,7 @@ class Dataset(torch.utils.data.Dataset):
     def __init__(self, dataset_root, pickel_file, min_audio_len=AUDIO_LEN):
         super().__init__()
         self.utterances = []
-        
+
         speaker_metadata = pickle.load(open(pickel_file, "rb"))
 
         for metadata in speaker_metadata:
@@ -45,12 +44,12 @@ class Dataset(torch.utils.data.Dataset):
             speaker_embedding = metadata[1]
 
             for utterance in metadata[2:]:
-                file_name = utterance + '.flac'
+                file_name = utterance + ".flac"
                 file_name = os.path.join(dataset_root, file_name)
                 audio, _ = torchaudio.load(file_name)
                 if audio.shape[-1] >= min_audio_len:
                     self.utterances.append((file_name, speaker, speaker_embedding))
-                        
+
     def __len__(self):
         return len(self.utterances)
 
@@ -79,7 +78,7 @@ class ContentVecExtractor:
 
 
 class Collator:
-    def __init__(self, contentvec_extractor, audio_len=AUDIO_LEN): 
+    def __init__(self, contentvec_extractor, audio_len=AUDIO_LEN):
         self.contentvec_extractor = contentvec_extractor
         self.audio_len = audio_len
 
@@ -94,14 +93,16 @@ class Collator:
 
         audios_tensor = torch.stack(audios)
 
-        contentvecs_tensor = self.contentvec_extractor.extract_content_representations(audios_tensor)
+        contentvecs_tensor = self.contentvec_extractor.extract_content_representations(
+            audios_tensor
+        )
 
         speaker_embedding_tensor = torch.stack(speaker_emb)
 
         return {
             "audio": audios_tensor,
             "contentvec": contentvecs_tensor,
-            "speaker_embedding": speaker_embedding_tensor
+            "speaker_embedding": speaker_embedding_tensor,
         }
 
 
@@ -157,22 +158,20 @@ class DiffusionEmbedding(nn.Module):
 class ContentVecUpsampler(nn.Module):
     def __init__(self):
         super().__init__()
-    
+
     def forward(self, contentvec, target_size):
         batch_size, feature_size, t = contentvec.shape
-        
-        # Reshape for interpolation
-        x = contentvec.unsqueeze(1) 
-        
-        # Direct interpolation to target size
+
+        x = contentvec.unsqueeze(1)
+
         x = F.interpolate(
             x,
             size=(feature_size, target_size),
-            mode='nearest',  # bilinear or 'nearest' for faster but less smooth results
+            mode="nearest",  # bilinear or 'nearest' for faster but less smooth results
             # align_corners=False
         )
-        
-        x = x.squeeze(1)  
+
+        x = x.squeeze(1)
         return x
 
 
@@ -183,23 +182,24 @@ class ResBlock(nn.Module):
             res_channel, 2 * res_channel, 3, padding=dilation, dilation=dilation
         )
         # self.diffstep_proj = Linear(512, res_channel)
-        self.diffstep_proj = Linear(512, 2*res_channel)
-        self.cond_proj = Conv1d(contentvec_feat_size, 2 * res_channel, 1)  # 768 -> 256  or 512 -> 256
+        self.diffstep_proj = Linear(512, 2 * res_channel)
+        self.cond_proj = Conv1d(
+            contentvec_feat_size, 2 * res_channel, 1
+        )  # 768 -> 256  or 512 -> 256
         self.output_proj = Conv1d(res_channel, 2 * res_channel, 1)
         self.cond = cond
 
-        self.diff_step_plus_speker_trans = nn.Sequential(Linear(512, 256), SiLU(), Linear(256, res_channel), SiLU()) # 256 == 2C here
+        self.diff_step_plus_speker_trans = nn.Sequential(
+            Linear(512, 256), SiLU(), Linear(256, res_channel), SiLU()
+        )  # 256 == 2C here
 
     def forward(self, inp, diff_step, conditioner, speaker_emb):
-        # diff_step = self.diffstep_proj(diff_step).unsqueeze(-1)
-        # x = inp + diff_step
-
-        ###############
         diff_step = self.diffstep_proj(diff_step)
         diff_step_plus_sp_emb = torch.concat((diff_step, speaker_emb), dim=1)
-        diff_step_plus_sp_emb = self.diff_step_plus_speker_trans(diff_step_plus_sp_emb).unsqueeze(-1)
+        diff_step_plus_sp_emb = self.diff_step_plus_speker_trans(
+            diff_step_plus_sp_emb
+        ).unsqueeze(-1)
         x = inp + diff_step_plus_sp_emb
-        ###############
 
         if self.cond:
             conditioner = self.cond_proj(conditioner)
@@ -222,20 +222,22 @@ class DiffWave(nn.Module):
         self.inp_proj = Conv1d(1, res_channels, 1)
         self.embedding = DiffusionEmbedding(len(NOISE_SCHEDULE))
 
-        # self.spectrogram_upsampler = SpectrogramUpsampler(n_mels)
         self.contentvec_upsampler = ContentVecUpsampler()
 
-        ########
         self.contentvec_hidden_size = 512
-        # self.contentvec_feat_transform = nn.Sequential(Linear(contentvec_feat_size, self.contentvec_hidden_size), SiLU())
-        self.contentvec_feat_transform = nn.Sequential(nn.Conv1d(contentvec_feat_size, self.contentvec_hidden_size, 1), SiLU())
-        ########
+        self.contentvec_feat_transform = nn.Sequential(
+            nn.Conv1d(contentvec_feat_size, self.contentvec_hidden_size, 1), SiLU()
+        )
 
         dilate_cycle = n_layers // 3
         self.layers = nn.ModuleList(
             [
-                # ResBlock(res_channels, 2 ** (i % dilate_cycle), contentvec_feat_size, self.cond)
-                ResBlock(res_channels, 2 ** (i % dilate_cycle), self.contentvec_hidden_size, self.cond)
+                ResBlock(
+                    res_channels,
+                    2 ** (i % dilate_cycle),
+                    self.contentvec_hidden_size,
+                    self.cond,
+                )
                 for i in range(n_layers)
             ]
         )
@@ -249,14 +251,8 @@ class DiffWave(nn.Module):
         x = F.relu(x)
         diffusion_step = self.embedding(diffusion_step)
 
-        # spectrogram = self.spectrogram_upsampler(spectrogram)
-
-        ######
         contentvec = self.contentvec_feat_transform(contentvec)
-        ######
         contentvec = self.contentvec_upsampler(contentvec, target_size=audio.shape[-1])
-        # if not self.cond:
-        #     contentvec = None
 
         skip = 0
         for layer in self.layers:
@@ -298,9 +294,8 @@ class DDPM(nn.Module):
         )
 
         if t == 0:
-            print
             return mean
-        
+
         sigma = np.take(self.beta, t) ** 0.5
         z = torch.randn_like(x_t)
         return mean + sigma * z
@@ -313,21 +308,14 @@ class DDPM(nn.Module):
 
         contentvec = contentvec.to(self.device)
         speaker_emb = speaker_emb.to(self.device)
-        
-        x = torch.randn(
-            contentvec.shape[0],  audio_len, device=self.device
-        )
+
+        x = torch.randn(contentvec.shape[0], audio_len, device=self.device)
 
         with torch.no_grad():
             for t in reversed(range(len(self.alpha))):
                 t_tensor = torch.tensor(t, device=self.device).unsqueeze(0)
                 pred_noise = self.model(x, t_tensor, contentvec, speaker_emb).squeeze(1)
                 x = self.reverse(x, pred_noise, t)
-
-                ##### Remove this after test ######
-                # y = x.cpu()
-                # wav_file = f"./generated_samples/diff_steps/{t}.wav"
-                # torchaudio.save(wav_file, y, 16000) 
 
         audio = torch.clamp(x, -1.0, 1.0)
         return audio
@@ -408,7 +396,10 @@ class Trainer:
 
                 noised_audio = self.diff_method(audio, t, noise)
                 predict_noise = self.model(
-                    noised_audio, torch.tensor(t, device=self.device), contentvec, speaker_emb
+                    noised_audio,
+                    torch.tensor(t, device=self.device),
+                    contentvec,
+                    speaker_emb,
                 ).squeeze()
 
                 loss = self.loss_fn(noise, predict_noise)
@@ -441,17 +432,32 @@ class Trainer:
 
         print("finish training: ~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-    def generate(self, contentvec, speaker_emb,audio_len):
+    def generate(self, contentvec, speaker_emb, audio_len):
         return self.diff_method.generate(contentvec, speaker_emb, audio_len)
 
 
 def parseArgs(parser):
-    parser.add_argument('--epochs', default=1, type=int, help='number of epochs')
-    parser.add_argument('--batch_size', default=8, type=int, help='batch size')
-    parser.add_argument('--lr', default=2e-4, type=float, help='learning rate')
-    parser.add_argument('--checkpoint_save_dir', default='./checkpoints/', type=str, help='directory where checkpoints are saved')
-    parser.add_argument('--checkpoint_load_path', default=None, type=str, help='path to saved checkpoint which use as starting point for training')
-    parser.add_argument('--checkpoint_every', default=5, type=int, help='frequency of saving checkpoints')
+    parser.add_argument("--epochs", default=1, type=int, help="number of epochs")
+    parser.add_argument("--batch_size", default=8, type=int, help="batch size")
+    parser.add_argument("--lr", default=2e-4, type=float, help="learning rate")
+    parser.add_argument(
+        "--checkpoint_save_dir",
+        default="./checkpoints/",
+        type=str,
+        help="directory where checkpoints are saved",
+    )
+    parser.add_argument(
+        "--checkpoint_load_path",
+        default=None,
+        type=str,
+        help="path to saved checkpoint which use as starting point for training",
+    )
+    parser.add_argument(
+        "--checkpoint_every",
+        default=5,
+        type=int,
+        help="frequency of saving checkpoints",
+    )
     return parser
 
 
@@ -459,7 +465,7 @@ if __name__ == "__main__":
     print("Available GPUs: ", torch.cuda.device_count())
     print("GPU model:", torch.cuda.get_device_name(torch.cuda.current_device()))
 
-    parser = argparse.ArgumentParser('train')
+    parser = argparse.ArgumentParser("train")
     parser = parseArgs(parser)
     args = parser.parse_args()
     print(args)
@@ -469,12 +475,14 @@ if __name__ == "__main__":
     EPOCHS = args.epochs
     SAVE_PER_EPOCH = args.checkpoint_every
     SAVE_DIR = args.checkpoint_save_dir
-    LOAD_PATH = args.checkpoint_load_path # None for starting from epoch 1
+    LOAD_PATH = args.checkpoint_load_path  # None for starting from epoch 1
 
     model = DiffWave(FILTER_SIZE, RES_LAYERS, 768)
 
-    # dataset = Dataset(root_dir="../LibriSpeech", subset="train-clean-100")
-    dataset = Dataset(dataset_root='../LibriSpeech/train-clean-100', pickel_file='./speaker_metadata.pkl')
+    dataset = Dataset(
+        dataset_root="../LibriSpeech/train-clean-100",
+        pickel_file="./speaker_metadata.pkl",
+    )
 
     contentvec_model_path = "checkpoint_best_legacy_500.pt"
     contentvec_extractor = ContentVecExtractor(model_path=contentvec_model_path)
@@ -489,11 +497,17 @@ if __name__ == "__main__":
     )
 
     trainer = Trainer(
-       model= model, dataloader=train_data, ckpt_dir=SAVE_DIR, epochs=EPOCHS, lr=LR, save_n_epoch=SAVE_PER_EPOCH, diff_method=DDPM, load_path=LOAD_PATH
+        model=model,
+        dataloader=train_data,
+        ckpt_dir=SAVE_DIR,
+        epochs=EPOCHS,
+        lr=LR,
+        save_n_epoch=SAVE_PER_EPOCH,
+        diff_method=DDPM,
+        load_path=LOAD_PATH,
     )
     trainer.train()
 
-    
     # # test_dataset = Dataset(root_dir="../LibriSpeech", subset="test-clean")
     # test_dataset = Dataset(dataset_root="../LibriSpeech/test-clean", pickel_file="./speaker_metadata_test.pkl")
     # test_data = torch.utils.data.DataLoader(
