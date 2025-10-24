@@ -2,7 +2,15 @@ from typing import List
 
 from datasets import LibriSpeechAnonymized, LibriSpeech, LibriSpeechAnonymizedDiffVC
 import whisper
-from jiwer import wer, process_words, visualize_alignment, Compose, RemovePunctuation, ToLowerCase, RemoveWhiteSpace
+from jiwer import (
+    wer,
+    process_words,
+    visualize_alignment,
+    Compose,
+    RemovePunctuation,
+    ToLowerCase,
+    RemoveWhiteSpace,
+)
 from tqdm import tqdm
 import numpy as np
 
@@ -10,23 +18,28 @@ from scipy.stats import wilcoxon
 
 
 import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 
 
 # os.environ["PATH"] += os.pathsep + "/usr/bin/ffmpeg"
 
 
-def wer_librispeech_anonymized(epochs=20, subset="test-clean", experiment="librispeech"):
+def wer_librispeech_anonymized(
+    epochs=20, subset="test-clean", experiment="librispeech"
+):
 
     # dataset = LibriSpeechAnonymized(root="/home/hpc/iwi5/iwi5248h/projects/Speaker Anonymization/LibriSpeechAnonymized", subset="test-clean")
     dataset = LibriSpeechAnonymized(root="../../LibriSpeechAnonymized", subset=subset)
 
     asr_model = whisper.load_model("large")
-    transform = Compose([
-        RemovePunctuation(),
-        ToLowerCase(),
-        RemoveWhiteSpace(replace_by_space=True),
-    ])
+    transform = Compose(
+        [
+            RemovePunctuation(),
+            ToLowerCase(),
+            RemoveWhiteSpace(replace_by_space=True),
+        ]
+    )
 
     word_error_rates = []
 
@@ -37,7 +50,6 @@ def wer_librispeech_anonymized(epochs=20, subset="test-clean", experiment="libri
         for sample in tqdm(dataset):
             waveform_file, _, transcript, *_ = sample
 
-            # Get prediction
             predicted = asr_model.transcribe(waveform_file)
 
             references.append(transform(transcript))
@@ -54,13 +66,14 @@ def wer_librispeech_anonymized(epochs=20, subset="test-clean", experiment="libri
     print(f"Mean WER Librispeech Anonymized (Our Method): {mean_WER}")
     print(f"STD WER Librispeech Anonymized (Our Method): {std_WER}")
 
-    mesg = f'\n----------------------------------------------------------------------------------------\n' \
-           f"Speaker model: Whisper (Large) | Dataset: LibriSpeech Anonymized (Our Method) | Subset: {subset}" \
-           f"\n\n\tAverage WER over {epochs} repetitions: {(mean_WER) * 100:.2f} ± {(std_WER) * 100:.2f}%" \
-           f'\n\n----------------------------------------------------------------------------------------\n'
-    with open(f'./results/{experiment}', 'a') as f:
+    mesg = (
+        f"\n----------------------------------------------------------------------------------------\n"
+        f"Speaker model: Whisper (Large) | Dataset: LibriSpeech Anonymized (Our Method) | Subset: {subset}"
+        f"\n\n\tAverage WER over {epochs} repetitions: {(mean_WER) * 100:.2f} ± {(std_WER) * 100:.2f}%"
+        f"\n\n----------------------------------------------------------------------------------------\n"
+    )
+    with open(f"./results/{experiment}", "a") as f:
         f.write(mesg)
-
 
 
 def wer_librispeech(epochs=20, subset="test-clean", experiment="librispeech"):
@@ -68,11 +81,13 @@ def wer_librispeech(epochs=20, subset="test-clean", experiment="librispeech"):
     dataset = LibriSpeech(root="../../LibriSpeech", subset=subset)
 
     asr_model = whisper.load_model("large")
-    transform = Compose([
-        RemovePunctuation(),
-        ToLowerCase(),
-        RemoveWhiteSpace(replace_by_space=True),
-    ])
+    transform = Compose(
+        [
+            RemovePunctuation(),
+            ToLowerCase(),
+            RemoveWhiteSpace(replace_by_space=True),
+        ]
+    )
 
     word_error_rates = []
 
@@ -83,7 +98,6 @@ def wer_librispeech(epochs=20, subset="test-clean", experiment="librispeech"):
         for sample in tqdm(dataset):
             waveform_file, _, transcript, *_ = sample
 
-            # Get prediction
             predicted = asr_model.transcribe(waveform_file)
 
             references.append(transform(transcript))
@@ -99,25 +113,33 @@ def wer_librispeech(epochs=20, subset="test-clean", experiment="librispeech"):
     print(f"Mean WER Librispeech: {mean_WER}")
     print(f"STD WER Librispeech: {std_WER}")
 
-    mesg = f'\n----------------------------------------------------------------------------------------\n' \
-           f"Speaker model: Whisper (Large) | Dataset: LibriSpeech | Subset: {subset}" \
-           f"\n\n\tAverage WER over {epochs} repetitions: {(mean_WER) * 100:.2f} ± {(std_WER) * 100:.2f}%" \
-           f'\n\n----------------------------------------------------------------------------------------\n'
-    with open(f'./results/{experiment}', 'a') as f:
+    mesg = (
+        f"\n----------------------------------------------------------------------------------------\n"
+        f"Speaker model: Whisper (Large) | Dataset: LibriSpeech | Subset: {subset}"
+        f"\n\n\tAverage WER over {epochs} repetitions: {(mean_WER) * 100:.2f} ± {(std_WER) * 100:.2f}%"
+        f"\n\n----------------------------------------------------------------------------------------\n"
+    )
+    with open(f"./results/{experiment}", "a") as f:
         f.write(mesg)
-    
 
-def wer_librispeech_diffvc_anonymized(epochs=20, subset="test-clean", experiment="librispeech"):
+
+def wer_librispeech_diffvc_anonymized(
+    epochs=20, subset="test-clean", experiment="librispeech"
+):
 
     # dataset = LibriSpeechAnonymizedDiffVC(root="/home/hpc/iwi5/iwi5248h/projects/Speaker Anonymization/LibriSpeechAnonymized-DiffVC-16KHz", subset=subset)
-    dataset = LibriSpeechAnonymizedDiffVC(root="../../LibriSpeechAnonymized-DiffVC-16KHz", subset=subset)
+    dataset = LibriSpeechAnonymizedDiffVC(
+        root="../../LibriSpeechAnonymized-DiffVC-16KHz", subset=subset
+    )
 
     asr_model = whisper.load_model("large")
-    transform = Compose([
-        RemovePunctuation(),
-        ToLowerCase(),
-        RemoveWhiteSpace(replace_by_space=True),
-    ])
+    transform = Compose(
+        [
+            RemovePunctuation(),
+            ToLowerCase(),
+            RemoveWhiteSpace(replace_by_space=True),
+        ]
+    )
 
     word_error_rates = []
 
@@ -127,8 +149,7 @@ def wer_librispeech_diffvc_anonymized(epochs=20, subset="test-clean", experiment
 
         for sample in tqdm(dataset):
             waveform_file, _, transcript, *_ = sample
-            
-            # Get prediction
+
             predicted = asr_model.transcribe(waveform_file)
 
             references.append(transform(transcript))
@@ -144,21 +165,25 @@ def wer_librispeech_diffvc_anonymized(epochs=20, subset="test-clean", experiment
     print(f"Mean WER Librispeech DiffVC Anonymized: {mean_WER}")
     print(f"STD WER Librispeech DiffVC  Anonymized: {std_WER}")
 
-    mesg = f'\n----------------------------------------------------------------------------------------\n' \
-           f"Speaker model: Whisper (Large) | Dataset: LibriSpeech DiffVC Anonymized | Subset: {subset}" \
-           f"\n\n\tAverage WER over {epochs} repetitions: {(mean_WER) * 100:.2f} ± {(std_WER) * 100:.2f}%" \
-           f'\n\n----------------------------------------------------------------------------------------\n'
-    with open(f'./results/{experiment}', 'a') as f:
+    mesg = (
+        f"\n----------------------------------------------------------------------------------------\n"
+        f"Speaker model: Whisper (Large) | Dataset: LibriSpeech DiffVC Anonymized | Subset: {subset}"
+        f"\n\n\tAverage WER over {epochs} repetitions: {(mean_WER) * 100:.2f} ± {(std_WER) * 100:.2f}%"
+        f"\n\n----------------------------------------------------------------------------------------\n"
+    )
+    with open(f"./results/{experiment}", "a") as f:
         f.write(mesg)
 
 
 def asr_outputs():
     asr_model = whisper.load_model("large")
-    transform = Compose([
-        RemovePunctuation(),
-        ToLowerCase(),
-        RemoveWhiteSpace(replace_by_space=True),
-    ])
+    transform = Compose(
+        [
+            RemovePunctuation(),
+            ToLowerCase(),
+            RemoveWhiteSpace(replace_by_space=True),
+        ]
+    )
 
     references = []
     librispeech_hypothesis = []
@@ -166,35 +191,60 @@ def asr_outputs():
     librispeech_anony_diffvc_hypothesis = []
     librispeech_anony_diffvc_libritts_hypothesis = []
 
-    dataset_librispeech = LibriSpeechAnonymized(root="../../LibriSpeech", subset="test-clean")
-    dataset_librispeech_anony = LibriSpeechAnonymized(root="../../LibriSpeechAnonymized", subset="test-clean")
-    dataset_librispeech_anony_diffvc = LibriSpeechAnonymizedDiffVC(root="../../LibriSpeechAnonymized-DiffVC-16KHz", subset="test-clean")
-    dataset_librispeech_anony_diffvc_libritts = LibriSpeechAnonymizedDiffVC(root="../../LibriSpeechAnonymized-DiffVC-16KHz", subset="test-clean-libritts")
-
+    dataset_librispeech = LibriSpeechAnonymized(
+        root="../../LibriSpeech", subset="test-clean"
+    )
+    dataset_librispeech_anony = LibriSpeechAnonymized(
+        root="../../LibriSpeechAnonymized", subset="test-clean"
+    )
+    dataset_librispeech_anony_diffvc = LibriSpeechAnonymizedDiffVC(
+        root="../../LibriSpeechAnonymized-DiffVC-16KHz", subset="test-clean"
+    )
+    dataset_librispeech_anony_diffvc_libritts = LibriSpeechAnonymizedDiffVC(
+        root="../../LibriSpeechAnonymized-DiffVC-16KHz", subset="test-clean-libritts"
+    )
 
     for i, sample in enumerate(tqdm(dataset_librispeech)):
         waveform_file, _, transcript, *_ = sample
         waveform_file_anony = dataset_librispeech_anony[i][0]
         waveform_file_anony_diffvc = dataset_librispeech_anony_diffvc[i][0]
-        waveform_file_anony_diffvc_libritts = dataset_librispeech_anony_diffvc_libritts[i][0]
+        waveform_file_anony_diffvc_libritts = dataset_librispeech_anony_diffvc_libritts[
+            i
+        ][0]
 
         predicted_librispeech = asr_model.transcribe(waveform_file)
         predicted_librispeech_anony = asr_model.transcribe(waveform_file_anony)
-        predicted_librispeech_anony_diffvc = asr_model.transcribe(waveform_file_anony_diffvc)
-        predicted_librispeech_anony_diffvc_libritts = asr_model.transcribe(waveform_file_anony_diffvc_libritts)
+        predicted_librispeech_anony_diffvc = asr_model.transcribe(
+            waveform_file_anony_diffvc
+        )
+        predicted_librispeech_anony_diffvc_libritts = asr_model.transcribe(
+            waveform_file_anony_diffvc_libritts
+        )
 
         references.append(transform(transcript))
         librispeech_hypothesis.append(transform(predicted_librispeech["text"]))
-        librispeech_anony_hypothesis.append(transform(predicted_librispeech_anony["text"]))
-        librispeech_anony_diffvc_hypothesis.append(transform(predicted_librispeech_anony_diffvc["text"]))
-        librispeech_anony_diffvc_libritts_hypothesis.append(transform(predicted_librispeech_anony_diffvc_libritts["text"]))
+        librispeech_anony_hypothesis.append(
+            transform(predicted_librispeech_anony["text"])
+        )
+        librispeech_anony_diffvc_hypothesis.append(
+            transform(predicted_librispeech_anony_diffvc["text"])
+        )
+        librispeech_anony_diffvc_libritts_hypothesis.append(
+            transform(predicted_librispeech_anony_diffvc_libritts["text"])
+        )
 
     np.save("references.npy", references)
     np.save("librispeech_hypothesis.npy", librispeech_hypothesis)
     np.save("librispeech_anony_hypothesis.npy", librispeech_anony_hypothesis)
-    np.save("librispeech_anony_diffvc_hypothesis.npy", librispeech_anony_diffvc_hypothesis)
-    np.save("librispeech_anony_diffvc_libritts_hypothesis.npy", librispeech_anony_diffvc_libritts_hypothesis)
+    np.save(
+        "librispeech_anony_diffvc_hypothesis.npy", librispeech_anony_diffvc_hypothesis
+    )
+    np.save(
+        "librispeech_anony_diffvc_libritts_hypothesis.npy",
+        librispeech_anony_diffvc_libritts_hypothesis,
+    )
     # return librispeech_wers, librispeech_anony_wers, librispeech_anony_diffvc_wers
+
 
 #
 # def get_error_counts(references: List[str], hypotheses: List[str]) -> np.ndarray:
@@ -282,19 +332,20 @@ def asr_outputs():
 
 
 def pvalue_wilcoxon(references, hypotheses_orig, hypotheses_anon, experiment):
-
     def get_error_counts(references: List[str], hypotheses: List[str]) -> np.ndarray:
         errors_per_sentence = []
-        
+
         for ref, hyp in zip(references, hypotheses):
             measurement = process_words(ref, hyp)
-            
-            error_count = (measurement.substitutions + 
-                        measurement.deletions + 
-                        measurement.insertions)
-            
+
+            error_count = (
+                measurement.substitutions
+                + measurement.deletions
+                + measurement.insertions
+            )
+
             errors_per_sentence.append(error_count)
-            
+
         return np.array(errors_per_sentence)
 
     errors_orig = get_error_counts(references, hypotheses_orig)
@@ -302,10 +353,7 @@ def pvalue_wilcoxon(references, hypotheses_orig, hypotheses_anon, experiment):
 
     try:
         statistic, p_value = wilcoxon(
-            x=errors_orig, 
-            y=errors_anon, 
-            alternative='two-sided',
-            correction=True 
+            x=errors_orig, y=errors_anon, alternative="two-sided", correction=True
         )
 
         print(f"--- Wilcoxon Signed-Rank Test Results: {experiment} ---")
@@ -313,27 +361,37 @@ def pvalue_wilcoxon(references, hypotheses_orig, hypotheses_anon, experiment):
         print(f"Wilcoxon W-Statistic: {statistic}")
         print(f"Two-Sided P-Value: {p_value:.2e}")
         print(f"Two-Sided P-Value: {repr(p_value)}")
-        
+
         if p_value < 0.05:
-            print("\nThe difference in the median error rate per sentence is **statistically significant** (p < 0.05).")
-            
+            print(
+                "\nThe difference in the median error rate per sentence is **statistically significant** (p < 0.05)."
+            )
+
             overall_wer_orig = wer(references, hypotheses_orig)
             overall_wer_anon = wer(references, hypotheses_anon)
-            
+
             if overall_wer_orig < overall_wer_anon:
-                print("Conclusion: H_orig (Original) is significantly better than H_anon (Anonymized).")
+                print(
+                    "Conclusion: H_orig (Original) is significantly better than H_anon (Anonymized)."
+                )
             else:
-                print("Conclusion: H_anon (Anonymized) is significantly better than H_orig (Original).")
+                print(
+                    "Conclusion: H_anon (Anonymized) is significantly better than H_orig (Original)."
+                )
 
         else:
-            print("\nThe difference in the median error rate per sentence is **not statistically significant** (p >= 0.05).")
+            print(
+                "\nThe difference in the median error rate per sentence is **not statistically significant** (p >= 0.05)."
+            )
 
     except ValueError as e:
         print(f"\nCould not run Wilcoxon Test: {e}")
-        print("Note: If all per-sentence error counts were identical (H_orig = H_anon), the test cannot be performed.")
+        print(
+            "Note: If all per-sentence error counts were identical (H_orig = H_anon), the test cannot be performed."
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     wer_librispeech(epochs=10)
     wer_librispeech_anonymized(epochs=10)
     wer_librispeech_diffvc_anonymized(epochs=10, subset="test-clean-libritts")
@@ -345,11 +403,15 @@ if __name__ == '__main__':
 
     asr_outputs()
 
-    references = np.load("references.npy").tolist() #original
+    references = np.load("references.npy").tolist()  # original
     librispeech_hypothesis = np.load("librispeech_hypothesis.npy").tolist()
     librispeech_anony_hypothesis = np.load("librispeech_anony_hypothesis.npy").tolist()
-    librispeech_anony_diffvc_hypothesis = np.load("librispeech_anony_diffvc_hypothesis.npy").tolist()
-    librispeech_anony_diffvc_libritts_hypothesis = np.load("librispeech_anony_diffvc_libritts_hypothesis.npy").tolist()
+    librispeech_anony_diffvc_hypothesis = np.load(
+        "librispeech_anony_diffvc_hypothesis.npy"
+    ).tolist()
+    librispeech_anony_diffvc_libritts_hypothesis = np.load(
+        "librispeech_anony_diffvc_libritts_hypothesis.npy"
+    ).tolist()
 
     # print(len(references), len(librispeech_hypothesis))
 
@@ -357,8 +419,27 @@ if __name__ == '__main__':
     # wer_pvalues(references=references, hypothesis_org=librispeech_hypothesis, hypothesis_anony=librispeech_anony_diffvc_hypothesis, bootstrap_samples=10000)
     # wer_pvalues(references=references, hypothesis_org=librispeech_anony_diffvc_hypothesis, hypothesis_anony=librispeech_anony_hypothesis, bootstrap_samples=10000)
 
-    pvalue_wilcoxon(references=references, hypotheses_orig=librispeech_hypothesis, hypotheses_anon=librispeech_anony_hypothesis, experiment="org_vs_anony")
-    pvalue_wilcoxon(references=references, hypotheses_orig=librispeech_hypothesis, hypotheses_anon=librispeech_anony_diffvc_hypothesis, experiment="org_vs_anony_diffvc_vctk")
-    pvalue_wilcoxon(references=references, hypotheses_orig=librispeech_hypothesis, hypotheses_anon=librispeech_anony_diffvc_libritts_hypothesis, experiment="org_vs_anony_diffvc_libritts")
-    pvalue_wilcoxon(references=references, hypotheses_orig=librispeech_anony_diffvc_hypothesis, hypotheses_anon=librispeech_anony_hypothesis, experiment="anony_vs_anony_diffvc_vctk")
-
+    pvalue_wilcoxon(
+        references=references,
+        hypotheses_orig=librispeech_hypothesis,
+        hypotheses_anon=librispeech_anony_hypothesis,
+        experiment="org_vs_anony",
+    )
+    pvalue_wilcoxon(
+        references=references,
+        hypotheses_orig=librispeech_hypothesis,
+        hypotheses_anon=librispeech_anony_diffvc_hypothesis,
+        experiment="org_vs_anony_diffvc_vctk",
+    )
+    pvalue_wilcoxon(
+        references=references,
+        hypotheses_orig=librispeech_hypothesis,
+        hypotheses_anon=librispeech_anony_diffvc_libritts_hypothesis,
+        experiment="org_vs_anony_diffvc_libritts",
+    )
+    pvalue_wilcoxon(
+        references=references,
+        hypotheses_orig=librispeech_anony_diffvc_hypothesis,
+        hypotheses_anon=librispeech_anony_hypothesis,
+        experiment="anony_vs_anony_diffvc_vctk",
+    )

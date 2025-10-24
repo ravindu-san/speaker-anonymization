@@ -19,15 +19,16 @@ class SpeechEmbedder(nn.Module):
         super().__init__()
         self.LSTM_stack = nn.LSTM(nmels, hidden_dim, num_layers, batch_first=True)
         for name, param in self.LSTM_stack.named_parameters():
-            if 'bias' in name:
+            if "bias" in name:
                 nn.init.constant_(param, 0.0)
-            elif 'weight' in name:
+            elif "weight" in name:
                 nn.init.xavier_normal_(param)
         self.projection = nn.Linear(hidden_dim, output_dim)
 
-
     def forward(self, input_tensor):
-        input_tensor, _ = self.LSTM_stack(input_tensor.float())  # (batch, frames, n_mels)
+        input_tensor, _ = self.LSTM_stack(
+            input_tensor.float()
+        )  # (batch, frames, n_mels)
         # only use last frame
         input_tensor = input_tensor[:, input_tensor.size(1) - 1]
         input_tensor = self.projection(input_tensor.float())

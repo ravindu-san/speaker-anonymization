@@ -12,19 +12,19 @@ def get_speaker_ids(path):
 
 
 # Save to numpy
-def save_speaker_ids(speaker_ids, filename='speakers.npy'):
+def save_speaker_ids(speaker_ids, filename="speakers.npy"):
     np.save(filename, np.array(speaker_ids))
 
 
 # Load from numpy
-def load_speaker_ids(filename='speakers.npy'):
+def load_speaker_ids(filename="speakers.npy"):
     return np.load(filename)
 
 
 def unique_speakers(train_speakers, test_speakers):
     train_set = set(train_speakers)
     test_set = set(test_speakers)
-    filtered_train_set = train_set - test_set 
+    filtered_train_set = train_set - test_set
     return sorted(filtered_train_set)
 
 
@@ -49,4 +49,3 @@ if __name__ == "__main__":
     print(f"Test Speaker Load: {test_speakers}")
     print(f"Unique Speaker Load: {load_speaker_ids(unique_train_speakers_file)}")
     # print(f"Unique Speaker Set Diff: {Set()}")
-

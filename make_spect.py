@@ -11,35 +11,34 @@ from numpy.random import RandomState
 def butter_highpass(cutoff, fs, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
-    b, a = signal.butter(order, normal_cutoff, btype='high', analog=False)
+    b, a = signal.butter(order, normal_cutoff, btype="high", analog=False)
     return b, a
-    
-    
+
+
 def pySTFT(x, fft_length=1024, hop_length=256):
-    
-    x = np.pad(x, int(fft_length//2), mode='reflect')
-    
+
+    x = np.pad(x, int(fft_length // 2), mode="reflect")
+
     noverlap = fft_length - hop_length
-    shape = x.shape[:-1]+((x.shape[-1]-noverlap)//hop_length, fft_length)
-    strides = x.strides[:-1]+(hop_length*x.strides[-1], x.strides[-1])
-    result = np.lib.stride_tricks.as_strided(x, shape=shape,
-                                             strides=strides)
-    
-    fft_window = get_window('hann', fft_length, fftbins=True)
+    shape = x.shape[:-1] + ((x.shape[-1] - noverlap) // hop_length, fft_length)
+    strides = x.strides[:-1] + (hop_length * x.strides[-1], x.strides[-1])
+    result = np.lib.stride_tricks.as_strided(x, shape=shape, strides=strides)
+
+    fft_window = get_window("hann", fft_length, fftbins=True)
     result = np.fft.rfft(fft_window * result, n=fft_length).T
-    
-    return np.abs(result)    
-    
-    
+
+    return np.abs(result)
+
+
 mel_basis = mel(sr=16000, n_fft=1024, fmin=90, fmax=7600, n_mels=80).T
 min_level = np.exp(-100 / 20 * np.log(10))
 b, a = butter_highpass(30, 16000, order=5)
 
 
 # audio file directory
-rootDir = '../LibriSpeech/train-clean-100'
+rootDir = "../LibriSpeech/train-clean-100"
 # spectrogram directory
-targetDir = './spmel'
+targetDir = "./spmel"
 
 
 # dirName, subdirList, _ = next(os.walk(rootDir))
@@ -50,7 +49,7 @@ targetDir = './spmel'
 #     if not os.path.exists(os.path.join(targetDir, subdir)):
 #         os.makedirs(os.path.join(targetDir, subdir))
 #     _,_, fileList = next(os.walk(os.path.join(dirName,subdir)))
-#     prng = RandomState(int(subdir[1:])) 
+#     prng = RandomState(int(subdir[1:]))
 #     for fileName in sorted(fileList):
 #         # Read audio file
 #         x, fs = sf.read(os.path.join(dirName,subdir,fileName))
@@ -63,11 +62,11 @@ targetDir = './spmel'
 #         # Convert to mel and normalize
 #         D_mel = np.dot(D, mel_basis)
 #         D_db = 20 * np.log10(np.maximum(min_level, D_mel)) - 16
-#         S = np.clip((D_db + 100) / 100, 0, 1)    
-#         # save spect    
+#         S = np.clip((D_db + 100) / 100, 0, 1)
+#         # save spect
 #         np.save(os.path.join(targetDir, subdir, fileName[:-4]),
-#                 S.astype(np.float32), allow_pickle=False)    
-        
+#                 S.astype(np.float32), allow_pickle=False)
+
 
 # Traverse speaker directories
 for speaker in sorted(os.listdir(rootDir)):
@@ -75,7 +74,7 @@ for speaker in sorted(os.listdir(rootDir)):
     if not os.path.isdir(speaker_path):
         continue
 
-    print(f'Processing speaker: {speaker}')
+    print(f"Processing speaker: {speaker}")
     speaker_target_path = os.path.join(targetDir, speaker)
 
     # Create target speaker directory if it doesn't exist
@@ -91,17 +90,16 @@ for speaker in sorted(os.listdir(rootDir)):
         if not os.path.isdir(chapter_path):
             continue
 
-        print(f'  Chapter: {chapter}')
+        print(f"  Chapter: {chapter}")
 
         # Process each .flac file in the chapter
         for fileName in sorted(os.listdir(chapter_path)):
-            if not (fileName.endswith('.flac') or fileName.endswith('.wav')):
+            if not (fileName.endswith(".flac") or fileName.endswith(".wav")):
                 continue  # Skip non-audio files
 
             input_file_path = os.path.join(chapter_path, fileName)
             output_file_path = os.path.join(
-                speaker_target_path,
-                os.path.splitext(fileName)[0] + '.npy'
+                speaker_target_path, os.path.splitext(fileName)[0] + ".npy"
             )
 
             try:
@@ -126,4 +124,4 @@ for speaker in sorted(os.listdir(rootDir)):
                 np.save(output_file_path, S.astype(np.float32), allow_pickle=False)
 
             except Exception as e:
-                print(f'Error processing {input_file_path}: {e}')
+                print(f"Error processing {input_file_path}: {e}")

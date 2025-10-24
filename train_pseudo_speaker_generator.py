@@ -7,9 +7,10 @@ from torch.optim import Adam
 from pseudo_speaker_generator import VAE
 
 import numpy as np
-import pickle 
+import pickle
 import os
 from tqdm import tqdm
+
 # import matplotlib.pyplot as plt
 
 
@@ -28,48 +29,48 @@ lr = 1e-3
 
 epochs = 150
 
+
 class SpkrEmbDataset(data.Dataset):
     """Dataset class for the Utterances dataset."""
 
     def __init__(self, pkl_path):
         """Initialize and preprocess the Utterances dataset."""
         self.pkl_path = pkl_path
-        
+
         """Load data"""
         self.load_data()
-        
-        
-    def load_data(self):  
+
+    def load_data(self):
         # load train.pkl
         with open(self.pkl_path, "rb") as f:
             meta = pickle.load(f)
-        self.dataset = [(sbmt[0], sbmt[1]) for sbmt in meta] # (spkr_id, spkr_emb)
+        self.dataset = [(sbmt[0], sbmt[1]) for sbmt in meta]  # (spkr_id, spkr_emb)
         self.num_spkr = len(self.dataset)
-        print('Finished loading the dataset...')
+        print("Finished loading the dataset...")
 
-                   
-        
     def __getitem__(self, index):
         spkr_id, spkr_emb = self.dataset[index]
         return spkr_id, spkr_emb
-    
 
     def __len__(self):
         """Return the number of spkrs."""
         return self.num_spkr
 
+
 def get_loader(pkl_path, batch_size=16, num_workers=0, shuffle=True, drop_last=True):
     """Build and return a data loader."""
-    
+
     dataset = SpkrEmbDataset(pkl_path)
-    
+
     worker_init_fn = lambda x: np.random.seed((torch.initial_seed()) % (2**32))
-    data_loader = data.DataLoader(dataset=dataset,
-                                  batch_size=batch_size,
-                                  shuffle=shuffle,
-                                  num_workers=num_workers,
-                                  drop_last=drop_last,
-                                  worker_init_fn=worker_init_fn)
+    data_loader = data.DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        drop_last=drop_last,
+        worker_init_fn=worker_init_fn,
+    )
     return data_loader
 
 
@@ -95,7 +96,7 @@ def get_loader(pkl_path, batch_size=16, num_workers=0, shuffle=True, drop_last=T
 #         # (i.e., parateters of simple tractable normal distribution "q"
 #         log_var = self.FC_var(h_)
 #         return mean, log_var
-    
+
 # class Decoder(nn.Module):
 #     def __init__(self, latent_dim, hidden_dim, output_dim):
 #         super(Decoder, self).__init__()
@@ -138,20 +139,22 @@ model = VAE(x_dim, hidden_dim, latent_dim, DEVICE).to(DEVICE)
 
 
 cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-mse = nn.MSELoss(reduction='sum')
-l1 = nn.L1Loss(reduction='sum')
+mse = nn.MSELoss(reduction="sum")
+l1 = nn.L1Loss(reduction="sum")
 
 
 def loss_function(x, x_hat, mean, log_var):
     # cosine similarity loss
-    cos_distance_loss = 200*(1-cos(x, x_hat)).sum()
+    cos_distance_loss = 200 * (1 - cos(x, x_hat)).sum()
     l1_loss = l1(x, x_hat)
     reconstruction_loss = cos_distance_loss + l1_loss
-    KLD = - 0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
+    KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
     return reconstruction_loss, KLD
 
 
-librispeech_dataloader = get_loader(pkl_path="./speaker_metadata.pkl", num_workers=2, batch_size=batch_size)
+librispeech_dataloader = get_loader(
+    pkl_path="./speaker_metadata.pkl", num_workers=2, batch_size=batch_size
+)
 
 dataloader = librispeech_dataloader
 
@@ -177,15 +180,28 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
 
-    print("\tEpoch", epoch + 1, "complete!",
-        "\tAverage Loss: ", overall_loss / (batch_idx*batch_size),
-        "\tAverage reconst Loss: ", overall_reconst / (batch_idx*batch_size),
-        "\tAverage KLD Loss: ", overall_KLD / (batch_idx*batch_size),)
+    print(
+        "\tEpoch",
+        epoch + 1,
+        "complete!",
+        "\tAverage Loss: ",
+        overall_loss / (batch_idx * batch_size),
+        "\tAverage reconst Loss: ",
+        overall_reconst / (batch_idx * batch_size),
+        "\tAverage KLD Loss: ",
+        overall_KLD / (batch_idx * batch_size),
+    )
 
 print("Finish!!")
 
 
-eval_dataloader = get_loader(pkl_path="./speaker_metadata_test.pkl", num_workers=2, batch_size=batch_size, shuffle=False, drop_last=False)
+eval_dataloader = get_loader(
+    pkl_path="./speaker_metadata_test.pkl",
+    num_workers=2,
+    batch_size=batch_size,
+    shuffle=False,
+    drop_last=False,
+)
 
 
 def eval(model, dataloader):
@@ -200,22 +216,27 @@ def eval(model, dataloader):
             n_sample += x.shape[0]
             x_hat, _, _ = model(x)
             cos_sim += cos(x_hat, x).sum()
-            mse += ((x-x_hat)**2).sum()
-    return {"cos_sim": cos_sim/n_sample, "mse": mse/n_sample}
+            mse += ((x - x_hat) ** 2).sum()
+    return {"cos_sim": cos_sim / n_sample, "mse": mse / n_sample}
+
 
 print("eval librispeech test clean...:")
 print("model:", eval(model, eval_dataloader))
 
 
-torch.save({'model': model.state_dict()}, "./checkpoints/pseudo_speaker_vae/vae_model.ckpt")
+torch.save(
+    {"model": model.state_dict()}, "./checkpoints/pseudo_speaker_vae/vae_model.ckpt"
+)
 
 
 ### no fine tuning
 
 
 model = VAE(x_dim, hidden_dim, latent_dim, DEVICE).to(DEVICE)
-checkpoint = torch.load("./checkpoints/pseudo_speaker_vae/vae_model.ckpt", map_location=DEVICE)
-model.load_state_dict(checkpoint['model'])
+checkpoint = torch.load(
+    "./checkpoints/pseudo_speaker_vae/vae_model.ckpt", map_location=DEVICE
+)
+model.load_state_dict(checkpoint["model"])
 
 
 with torch.no_grad():

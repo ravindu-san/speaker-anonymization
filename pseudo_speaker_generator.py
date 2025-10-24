@@ -1,6 +1,6 @@
-
 import torch
 import torch.nn as nn
+
 
 class Encoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):
@@ -24,7 +24,8 @@ class Encoder(nn.Module):
         # (i.e., parateters of simple tractable normal distribution "q"
         log_var = self.FC_var(h_)
         return mean, log_var
-    
+
+
 class Decoder(nn.Module):
     def __init__(self, latent_dim, hidden_dim, output_dim):
         super(Decoder, self).__init__()
@@ -45,13 +46,17 @@ class Decoder(nn.Module):
 class VAE(nn.Module):
     def __init__(self, x_dim, hidden_dim, latent_dim, DEVICE):
         super(VAE, self).__init__()
-        self.Encoder = Encoder(input_dim=x_dim, hidden_dim=hidden_dim, latent_dim=latent_dim)
-        self.Decoder = Decoder(latent_dim=latent_dim, hidden_dim = hidden_dim, output_dim = x_dim)
+        self.Encoder = Encoder(
+            input_dim=x_dim, hidden_dim=hidden_dim, latent_dim=latent_dim
+        )
+        self.Decoder = Decoder(
+            latent_dim=latent_dim, hidden_dim=hidden_dim, output_dim=x_dim
+        )
         self.DEVICE = DEVICE
 
     def reparameterization(self, mean, var):
         epsilon = torch.randn_like(var).to(self.DEVICE)  # sampling epsilon
-        z = mean + var*epsilon  # reparameterization trick
+        z = mean + var * epsilon  # reparameterization trick
         return z
 
     def forward(self, x):

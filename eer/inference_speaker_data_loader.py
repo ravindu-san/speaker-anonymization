@@ -4,6 +4,7 @@ import os
 import pdb
 import glob
 import random
+
 # import pandas as pd
 import soundfile as sf
 import webrtcvad
@@ -11,27 +12,30 @@ import struct
 from tqdm import tqdm
 import librosa
 from scipy.ndimage.morphology import binary_dilation
+
 # from speechbrain.pretrained import HIFIGAN
 from scipy.io.wavfile import write
 from librosa.filters import mel
 from scipy import signal
 import math
 from scipy.signal import get_window
+
 # import noisereduce as nr
 import torchaudio
 
 from config.serde import read_config
 
 import sys
-sys.path.append('..')
+
+sys.path.append("..")
 from anonymize import Anonymizer
 
 epsilon = 1e-15
-int16_max = (2 ** 15) - 1
+int16_max = (2**15) - 1
 
 
 class loader_for_dvector_creation:
-    def __init__(self, cfg_path='./config/config.json', spk_nmels=40):
+    def __init__(self, cfg_path="./config/config.json", spk_nmels=40):
         """For d-vector creation (prediction of the input utterances) step.
 
         Parameters
@@ -41,12 +45,14 @@ class loader_for_dvector_creation:
         """
         self.params = read_config(cfg_path)
         self.cfg_path = cfg_path
-        self.file_path = self.params['file_path']
-        self.utter_min_len = (self.params['preprocessing']['tisv_frame'] * self.params['preprocessing']['hop'] +
-                         self.params['preprocessing']['window']) * self.params['preprocessing']['sr']
+        self.file_path = self.params["file_path"]
+        self.utter_min_len = (
+            self.params["preprocessing"]["tisv_frame"]
+            * self.params["preprocessing"]["hop"]
+            + self.params["preprocessing"]["window"]
+        ) * self.params["preprocessing"]["sr"]
         self.nmels = spk_nmels
         # self.main_df = pd.read_csv(os.path.join(self.params['file_path'], "PathologAnonym_project/masterlist_org.csv"), sep=';')
-
 
     def provide_data_original(self):
         """
@@ -70,12 +76,12 @@ class loader_for_dvector_creation:
                 for file in os.listdir(chapter_dir):
                     if not file.endswith(".flac"):
                         continue
-                    
-            # selected_speaker_df = self.main_df[self.main_df['speaker_id'] == speaker_name]
-            # list of utterances of each speaker
-                # utterances = []
 
-                # for index, row in selected_speaker_df.iterrows():
+                    # selected_speaker_df = self.main_df[self.main_df['speaker_id'] == speaker_name]
+                    # list of utterances of each speaker
+                    # utterances = []
+
+                    # for index, row in selected_speaker_df.iterrows():
                     # utter, sr = sf.read(os.path.join(self.file_path, row['relative_path']))
                     utter, sr = sf.read(os.path.join(chapter_dir, file))
                     utterance = self.tisv_preproc(utter)
@@ -85,7 +91,6 @@ class loader_for_dvector_creation:
             speakers[speaker] = utterances
 
         return speakers
-
 
     def provide_data_anonymized(self):
         """
@@ -98,7 +103,7 @@ class loader_for_dvector_creation:
         # dictionary of speakers
         speakers = {}
         # speech_dir = "/home/hpc/iwi5/iwi5248h/projects/Speaker Anonymization/LibriSpeechAnonymized/test-clean"
-        speech_dir = "/home/hpc/iwi5/iwi5248h/projects/Speaker Anonymization/LibriSpeechAnonymized-DiffVC-16KHz/test-clean" 
+        speech_dir = "/home/hpc/iwi5/iwi5248h/projects/Speaker Anonymization/LibriSpeechAnonymized-DiffVC-16KHz/test-clean"
 
         for speaker in os.listdir(speech_dir):
             speaker_dir = os.path.join(speech_dir, speaker)
@@ -117,7 +122,6 @@ class loader_for_dvector_creation:
 
         return speakers
 
-
     def tisv_preproc(self, utter):
         """
         GE2E-loss-based pre-processing
@@ -130,17 +134,22 @@ class loader_for_dvector_creation:
         ----------
         """
         # pre-processing and voice activity detection (VAD) part 1
-        utter = self.normalize_volume(utter, self.params['preprocessing']['audio_norm_target_dBFS'],
-                                      increase_only=True)
+        utter = self.normalize_volume(
+            utter,
+            self.params["preprocessing"]["audio_norm_target_dBFS"],
+            increase_only=True,
+        )
         utter = self.trim_long_silences(utter)
 
         # basically this does nothing if 60 is chosen, 60 is too high, so the whole wav will be selected.
         # This just makes an interval from beginning to the end.
-        intervals = librosa.effects.split(utter, top_db=30)  # voice activity detection part 2
+        intervals = librosa.effects.split(
+            utter, top_db=30
+        )  # voice activity detection part 2
 
         for interval_index, interval in enumerate(intervals):
             # if (interval[1] - interval[0]) > self.utter_min_len:  # If partial utterance is sufficiently long,
-            utter_part = utter[interval[0]:interval[1]]
+            utter_part = utter[interval[0] : interval[1]]
 
             # concatenate all the partial utterances of each utterance
             if interval_index == 0:
@@ -150,18 +159,29 @@ class loader_for_dvector_creation:
                     utter_whole = np.hstack((utter_whole, utter_part))
                 except:
                     utter_whole = utter_part
-        if 'utter_whole' in locals():
-            S = librosa.core.stft(y=utter_whole, n_fft=self.params['preprocessing']['nfft'],
-                                  win_length=int(
-                                      self.params['preprocessing']['window'] * self.params['preprocessing']['sr']),
-                                  hop_length=int(
-                                      self.params['preprocessing']['hop'] * self.params['preprocessing']['sr']))
+        if "utter_whole" in locals():
+            S = librosa.core.stft(
+                y=utter_whole,
+                n_fft=self.params["preprocessing"]["nfft"],
+                win_length=int(
+                    self.params["preprocessing"]["window"]
+                    * self.params["preprocessing"]["sr"]
+                ),
+                hop_length=int(
+                    self.params["preprocessing"]["hop"]
+                    * self.params["preprocessing"]["sr"]
+                ),
+            )
             S = np.abs(S) ** 2
-            mel_basis = librosa.filters.mel(sr=self.params['preprocessing']['sr'],
-                                            n_fft=self.params['preprocessing']['nfft'],
-                                            n_mels=self.nmels)
+            mel_basis = librosa.filters.mel(
+                sr=self.params["preprocessing"]["sr"],
+                n_fft=self.params["preprocessing"]["nfft"],
+                n_mels=self.nmels,
+            )
 
-            SS = np.log10(np.dot(mel_basis, S) + 1e-6)  # log mel spectrogram of partial utterance
+            SS = np.log10(
+                np.dot(mel_basis, S) + 1e-6
+            )  # log mel spectrogram of partial utterance
 
         return SS
 
@@ -183,41 +203,58 @@ class loader_for_dvector_creation:
         """
 
         # Compute the voice detection window size
-        samples_per_window = (self.params['preprocessing']['vad_window_length'] * self.params['preprocessing']['sr']) // 1000
+        samples_per_window = (
+            self.params["preprocessing"]["vad_window_length"]
+            * self.params["preprocessing"]["sr"]
+        ) // 1000
 
         # Trim the end of the audio to have a multiple of the window size
-        wav = wav[:len(wav) - (len(wav) % samples_per_window)]
+        wav = wav[: len(wav) - (len(wav) % samples_per_window)]
 
         # Convert the float waveform to 16-bit mono PCM
-        pcm_wave = struct.pack("%dh" % len(wav), *(np.round(wav * int16_max)).astype(np.int16))
+        pcm_wave = struct.pack(
+            "%dh" % len(wav), *(np.round(wav * int16_max)).astype(np.int16)
+        )
 
         # Perform voice activation detection
         voice_flags = []
         vad = webrtcvad.Vad(mode=3)
         for window_start in range(0, len(wav), samples_per_window):
             window_end = window_start + samples_per_window
-            voice_flags.append(vad.is_speech(pcm_wave[window_start * 2:window_end * 2],
-                                             sample_rate=self.params['preprocessing']['sr']))
+            voice_flags.append(
+                vad.is_speech(
+                    pcm_wave[window_start * 2 : window_end * 2],
+                    sample_rate=self.params["preprocessing"]["sr"],
+                )
+            )
         voice_flags = np.array(voice_flags)
 
         # Smooth the voice detection with a moving average
         def moving_average(array, width):
-            array_padded = np.concatenate((np.zeros((width - 1) // 2), array, np.zeros(width // 2)))
+            array_padded = np.concatenate(
+                (np.zeros((width - 1) // 2), array, np.zeros(width // 2))
+            )
             ret = np.cumsum(array_padded, dtype=float)
             ret[width:] = ret[width:] - ret[:-width]
-            return ret[width - 1:] / width
+            return ret[width - 1 :] / width
 
-        audio_mask = moving_average(voice_flags, self.params['preprocessing']['vad_moving_average_width'])
+        audio_mask = moving_average(
+            voice_flags, self.params["preprocessing"]["vad_moving_average_width"]
+        )
         audio_mask = np.round(audio_mask).astype(np.bool)
 
         # Dilate the voiced regions
-        audio_mask = binary_dilation(audio_mask, np.ones(self.params['preprocessing']['vad_max_silence_length'] + 1))
+        audio_mask = binary_dilation(
+            audio_mask,
+            np.ones(self.params["preprocessing"]["vad_max_silence_length"] + 1),
+        )
         audio_mask = np.repeat(audio_mask, samples_per_window)
 
         return wav[audio_mask == True]
 
-
-    def normalize_volume(self, wav, target_dBFS, increase_only=False, decrease_only=False):
+    def normalize_volume(
+        self, wav, target_dBFS, increase_only=False, decrease_only=False
+    ):
         if increase_only and decrease_only:
             raise ValueError("Both increase only and decrease only are set")
         rms = np.sqrt(np.mean((wav * int16_max) ** 2))
@@ -226,7 +263,6 @@ class loader_for_dvector_creation:
         if dBFS_change < 0 and increase_only or dBFS_change > 0 and decrease_only:
             return wav
         return wav * (10 ** (dBFS_change / 20))
-    
 
 
 class anonymizer_loader:
@@ -235,27 +271,34 @@ class anonymizer_loader:
         # self.anonymized_speech_dir = self.speech_dir.replace("LibriSpeech", "LibriSpeechAnonymized")
         self.diff_synth_model_path = "../checkpoints/weight_epoch4795.pt"
         self.contentvec_model_path = "../checkpoint_best_legacy_500.pt"
-        self.speaker_emb_model_path =  "../checkpoints/pseudo_speaker_vae/vae_model.ckpt"
-
+        self.speaker_emb_model_path = "../checkpoints/pseudo_speaker_vae/vae_model.ckpt"
 
     def do_anonymize(self):
-        anonymizer = Anonymizer(diff_model_path=self.diff_synth_model_path, contentvec_model_path=self.contentvec_model_path, speaker_emb_model_path=self.speaker_emb_model_path)
+        anonymizer = Anonymizer(
+            diff_model_path=self.diff_synth_model_path,
+            contentvec_model_path=self.contentvec_model_path,
+            speaker_emb_model_path=self.speaker_emb_model_path,
+        )
 
         for speaker in os.listdir(self.speech_dir):
             speaker_dir = os.path.join(self.speech_dir, speaker)
             for chapter in os.listdir(speaker_dir):
                 chapter_dir = os.path.join(speaker_dir, chapter)
                 for file in os.listdir(chapter_dir):
-                    if not file.endswith('.flac'): 
+                    if not file.endswith(".flac"):
                         continue
-                    
+
                     speech_file_path = os.path.join(chapter_dir, file)
-                    anonymized_speech_file = speech_file_path.replace("LibriSpeech", 'LibriSpeechAnonymized')
-                    
+                    anonymized_speech_file = speech_file_path.replace(
+                        "LibriSpeech", "LibriSpeechAnonymized"
+                    )
+
                     if os.path.isfile(anonymized_speech_file):
                         continue
 
-                    anonymized_speech = anonymizer.anonymize(speech_file_path, save_intermediate=False)
+                    anonymized_speech = anonymizer.anonymize(
+                        speech_file_path, save_intermediate=False
+                    )
 
                     os.makedirs(os.path.dirname(anonymized_speech_file), exist_ok=True)
                     # print(speech_file_path.replace("LibriSpeech", 'LibriSpeechAnonymized'))
@@ -264,7 +307,7 @@ class anonymizer_loader:
 
 
 class original_dvector_loader:
-    def __init__(self, cfg_path='./configs/config.json', M=8):
+    def __init__(self, cfg_path="./configs/config.json", M=8):
         """For thresholding and testing.
 
         Parameters
@@ -283,9 +326,12 @@ class original_dvector_loader:
             return shape: (# all speakers, M, embedding size)
         """
         params = read_config(cfg_path)
-        self.speaker_list = glob.glob(os.path.join(params['target_dir'], params['dvectors_path_original'], "*.npy"))
+        self.speaker_list = glob.glob(
+            os.path.join(
+                params["target_dir"], params["dvectors_path_original"], "*.npy"
+            )
+        )
         self.M = M
-
 
     def provide_test_original(self):
         output_tensor = []
@@ -299,7 +345,7 @@ class original_dvector_loader:
                 id = np.array([0])
             else:
                 id = np.random.randint(0, embedding.shape[0] - self.M, 1)
-            embedding = embedding[id[0]:id[0] + self.M]
+            embedding = embedding[id[0] : id[0] + self.M]
             output_tensor.append(embedding)
         output_tensor = np.stack(output_tensor)
         output_tensor = torch.from_numpy(output_tensor)
@@ -308,7 +354,7 @@ class original_dvector_loader:
 
 
 class anonymized_dvector_loader:
-    def __init__(self, cfg_path='./configs/config.json', M=8):
+    def __init__(self, cfg_path="./configs/config.json", M=8):
         """For d-vector calculation.
 
         Parameters
@@ -327,13 +373,20 @@ class anonymized_dvector_loader:
             return shape: (# all speakers, M, embedding size)
         """
         params = read_config(cfg_path)
-        self.speaker_list_anonymized = glob.glob(os.path.join(params['target_dir'], params['dvectors_path_anonymized'], "*.npy"))
-        self.speaker_list_original = glob.glob(os.path.join(params['target_dir'], params['dvectors_path_original'], "*.npy"))
+        self.speaker_list_anonymized = glob.glob(
+            os.path.join(
+                params["target_dir"], params["dvectors_path_anonymized"], "*.npy"
+            )
+        )
+        self.speaker_list_original = glob.glob(
+            os.path.join(
+                params["target_dir"], params["dvectors_path_original"], "*.npy"
+            )
+        )
         self.M = M
         self.speaker_list_anonymized.sort()
         self.speaker_list_original.sort()
         assert len(self.speaker_list_original) == len(self.speaker_list_anonymized)
-
 
     def provide_test_anonymized_and_original(self):
         output_tensor_anonymized = []
@@ -348,11 +401,10 @@ class anonymized_dvector_loader:
                 id = np.array([0])
             else:
                 id = np.random.randint(0, embedding.shape[0] - self.M, 1)
-            embedding = embedding[id[0]:id[0] + self.M]
+            embedding = embedding[id[0] : id[0] + self.M]
             output_tensor_anonymized.append(embedding)
         output_tensor_anonymized = np.stack(output_tensor_anonymized)
         output_tensor_anonymized = torch.from_numpy(output_tensor_anonymized)
-
 
         # return all speakers of original
         for speaker in self.speaker_list_original:
@@ -363,7 +415,7 @@ class anonymized_dvector_loader:
                 id = np.array([0])
             else:
                 id = np.random.randint(0, embedding.shape[0] - self.M, 1)
-            embedding = embedding[id[0]:id[0] + self.M]
+            embedding = embedding[id[0] : id[0] + self.M]
             output_tensor_original.append(embedding)
         output_tensor_original = np.stack(output_tensor_original)
         output_tensor_original = torch.from_numpy(output_tensor_original)
